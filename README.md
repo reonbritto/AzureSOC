@@ -20,17 +20,13 @@ top of it.
 
 Telemetry data flow:
 
-```
-Attacker (Internet)  ──►  Honeynet VMs  ── AMA + DCR──►  Log Analytics
-                                                            │
-                          ┌─────────────────────────────────┤
-                          ▼                                  ▼
-                Sentinel analytics rules            Attack-map workbook
-                  → SecurityAlert                     (GeoIP watchlist join)
-                  → SecurityIncident
-                          │
-                          ▼
-                Manual playbook → NSG deny rule (ban IP)
+```mermaid
+flowchart TD
+    A[Attacker Internet] --> VM[Honeynet VMs]
+    VM -- AMA + DCR --> LA[Log Analytics]
+    LA --> AR[Sentinel analytics rules<br/>SecurityAlert to SecurityIncident]
+    LA --> WB[Attack-map workbook<br/>GeoIP watchlist join]
+    AR --> PB[Manual playbook<br/>NSG deny rule ban IP]
 ```
 
 ---
