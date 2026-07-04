@@ -1,0 +1,173 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# SOC Honeynet \u2014 Attack Maps\nGeoIP-resolved attack origins across SSH, RDP, MSSQL, and malicious NSG flows. Requires the `geoip` watchlist."
+      },
+      "name": "title"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Linux SSH \u2014 Failed Password"
+      },
+      "name": "h-linux"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let GeoIPDB_FULL = _GetWatchlist(\"geoip\");\nlet IpAddress_REGEX_PATTERN = @\"\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b\";\nSyslog\n| where Facility == \"auth\"\n| where SyslogMessage startswith \"Failed password for\"\n| order by TimeGenerated desc\n| project TimeGenerated, SourceIP = extract(IpAddress_REGEX_PATTERN, 0, SyslogMessage), DestinationHostName = HostName, DestinationIP = HostIP, Facility, SyslogMessage, ProcessName, SeverityLevel, Type\n| evaluate ipv4_lookup(GeoIPDB_FULL, SourceIP, network)\n| project TimeGenerated, SourceIP, DestinationHostName, DestinationIP, Facility, SyslogMessage, ProcessName, SeverityLevel, Type, latitude, longitude, city = cityname, country = countryname, friendly_location = strcat(cityname, \" (\", countryname, \")\");",
+        "size": 3,
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "map",
+        "mapSettings": {
+          "locInfo": "LatLong",
+          "locInfoColumn": "countryname",
+          "latitude": "latitude",
+          "longitude": "longitude",
+          "sizeSettings": "latitude",
+          "sizeAggregation": "Count",
+          "opacity": 0.8,
+          "labelSettings": "friendly_location",
+          "legendMetric": "friendly_location",
+          "legendAggregation": "Count",
+          "itemColorSettings": {
+            "nodeColorField": "latitude",
+            "colorAggregation": "Count",
+            "type": "heatmap",
+            "heatmapPalette": "greenRed"
+          }
+        }
+      },
+      "name": "map-linux"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Windows RDP \u2014 Failed Logon (EventID 4625)"
+      },
+      "name": "h-rdp"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let GeoIPDB_FULL = _GetWatchlist(\"geoip\");\nlet WindowsEvents = SecurityEvent;\nWindowsEvents | where EventID == 4625\n| order by TimeGenerated desc\n| evaluate ipv4_lookup(GeoIPDB_FULL, IpAddress, network)\n| project TimeGenerated, Account, AccountType, Computer, EventID, Activity, IpAddress, LogonTypeName, network, latitude, longitude, city = cityname, country = countryname, friendly_location = strcat(cityname, \" (\", countryname, \")\");\n",
+        "size": 3,
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "map",
+        "mapSettings": {
+          "locInfo": "LatLong",
+          "locInfoColumn": "countryname",
+          "latitude": "latitude",
+          "longitude": "longitude",
+          "sizeSettings": "EventID",
+          "sizeAggregation": "Count",
+          "opacity": 0.8,
+          "labelSettings": "friendly_location",
+          "legendMetric": "EventID",
+          "legendAggregation": "Count",
+          "itemColorSettings": {
+            "nodeColorField": "EventID",
+            "colorAggregation": "Sum",
+            "type": "heatmap",
+            "heatmapPalette": "greenRed"
+          }
+        }
+      },
+      "name": "map-rdp"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## MSSQL \u2014 Brute Force (EventID 18456)"
+      },
+      "name": "h-mssql"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let GeoIPDB_FULL = _GetWatchlist(\"geoip\");\nlet IpAddress_REGEX_PATTERN = @\"\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b\";\n// Brute Force Attempt MS SQL Server\nEvent\n| where EventLog == \"Application\"\n| where EventID == 18456\n| project TimeGenerated, AttackerIP = extract(IpAddress_REGEX_PATTERN, 0, RenderedDescription), DestinationHostName = Computer, RenderedDescription\n| evaluate ipv4_lookup(GeoIPDB_FULL, AttackerIP, network)\n| project TimeGenerated, AttackerIP, DestinationHostName, RenderedDescription, latitude, longitude, city = cityname, country = countryname, friendly_location = strcat(cityname, \" (\", countryname, \")\");",
+        "size": 3,
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "map",
+        "mapSettings": {
+          "locInfo": "LatLong",
+          "locInfoColumn": "countryname",
+          "latitude": "latitude",
+          "longitude": "longitude",
+          "sizeSettings": "latitude",
+          "sizeAggregation": "Count",
+          "opacity": 0.8,
+          "labelSettings": "friendly_location",
+          "legendMetric": "friendly_location",
+          "legendAggregation": "Count",
+          "itemColorSettings": {
+            "nodeColorField": "latitude",
+            "colorAggregation": "Sum",
+            "type": "heatmap",
+            "heatmapPalette": "greenRed"
+          }
+        }
+      },
+      "name": "map-mssql"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## NSG \u2014 Malicious Inbound Flows Allowed"
+      },
+      "name": "h-nsg"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let GeoIPDB_FULL = _GetWatchlist(\"geoip\");\nlet MaliciousFlows = AzureNetworkAnalytics_CL \n| where FlowType_s == \"MaliciousFlow\"\n| order by TimeGenerated desc\n| project TimeGenerated, FlowType = FlowType_s, IpAddress = SrcIP_s, DestinationIpAddress = DestIP_s, DestinationPort = DestPort_d, Protocol = L7Protocol_s, NSGRuleMatched = NSGRules_s;\nMaliciousFlows\n| evaluate ipv4_lookup(GeoIPDB_FULL, IpAddress, network)\n| project TimeGenerated, FlowType, IpAddress, DestinationIpAddress, DestinationPort, Protocol, NSGRuleMatched, latitude, longitude, city = cityname, country = countryname, friendly_location = strcat(cityname, \" (\", countryname, \")\")",
+        "size": 3,
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "map",
+        "mapSettings": {
+          "locInfo": "LatLong",
+          "locInfoColumn": "countryname",
+          "latitude": "latitude",
+          "longitude": "longitude",
+          "sizeSettings": "city",
+          "sizeAggregation": "Count",
+          "opacity": 0.8,
+          "labelSettings": "friendly_location",
+          "legendMetric": "IpAddress",
+          "legendAggregation": "Count",
+          "itemColorSettings": {
+            "nodeColorField": "city",
+            "colorAggregation": "Count",
+            "type": "heatmap",
+            "heatmapPalette": "greenRed"
+          }
+        }
+      },
+      "name": "map-nsg"
+    }
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

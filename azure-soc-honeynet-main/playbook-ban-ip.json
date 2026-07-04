@@ -1,0 +1,189 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "playbookName": {
+      "type": "string",
+      "defaultValue": "SOC-Ban-AttackerIP",
+      "metadata": { "description": "Logic App / playbook name." }
+    },
+    "nsgResourceId": {
+      "type": "string",
+      "defaultValue": "[resourceId('Microsoft.Network/networkSecurityGroups', 'nsg-soc-honeynet')]",
+      "metadata": { "description": "Full resource ID of the NSG to add the deny rule to. Defaults to nsg-soc-honeynet in the deployment resource group." }
+    },
+    "denyRuleName": {
+      "type": "string",
+      "defaultValue": "DENY-BRUTEFORCE-IPS",
+      "metadata": { "description": "Name of the managed inbound deny rule the playbook maintains." }
+    },
+    "denyRulePriority": {
+      "type": "int",
+      "defaultValue": 100,
+      "metadata": { "description": "Priority of the deny rule (lower = higher precedence; must beat the allow rule at 110)." }
+    }
+  },
+  "variables": {
+    "nsgApiVersion": "2023-11-01"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Logic/workflows",
+      "apiVersion": "2019-05-01",
+      "name": "[parameters('playbookName')]",
+      "location": "[resourceGroup().location]",
+      "identity": { "type": "SystemAssigned" },
+      "tags": {
+        "hidden-SentinelTemplateName": "SOC-Ban-AttackerIP",
+        "hidden-SentinelTemplateVersion": "1.0"
+      },
+      "properties": {
+        "state": "Enabled",
+        "parameters": {
+          "nsgResourceId": { "value": "[parameters('nsgResourceId')]" },
+          "denyRuleName": { "value": "[parameters('denyRuleName')]" },
+          "denyRulePriority": { "value": "[parameters('denyRulePriority')]" },
+          "nsgApiVersion": { "value": "[variables('nsgApiVersion')]" }
+        },
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "nsgResourceId": { "type": "String" },
+            "denyRuleName": { "type": "String" },
+            "denyRulePriority": { "type": "Int" },
+            "nsgApiVersion": { "type": "String" }
+          },
+          "triggers": {
+            "Microsoft_Sentinel_incident": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "body": {
+                  "callback_url": "@{listCallbackUrl()}"
+                },
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "path": "/incident-creation"
+              }
+            }
+          },
+          "actions": {
+            "Entities_-_Get_IPs": {
+              "type": "ApiConnection",
+              "inputs": {
+                "body": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "path": "/entities/ip"
+              }
+            },
+            "For_each_IP": {
+              "type": "Foreach",
+              "foreach": "@body('Entities_-_Get_IPs')?['IPs']",
+              "runAfter": { "Entities_-_Get_IPs": [ "Succeeded" ] },
+              "actions": {
+                "Get_current_NSG": {
+                  "type": "Http",
+                  "inputs": {
+                    "method": "GET",
+                    "uri": "https://management.azure.com@{parameters('nsgResourceId')}?api-version=@{parameters('nsgApiVersion')}",
+                    "authentication": { "type": "ManagedServiceIdentity", "audience": "https://management.azure.com/" }
+                  }
+                },
+                "Compute_prefixes": {
+                  "type": "Compose",
+                  "runAfter": { "Get_current_NSG": [ "Succeeded" ] },
+                  "inputs": "@union(coalesce(first(filter(coalesce(body('Get_current_NSG')?['properties']?['securityRules'], createArray()), item => equals(item?['name'], parameters('denyRuleName'))))?['properties']?['sourceAddressPrefixes'], createArray()), createArray(concat(items('For_each_IP')?['Address'], '/32')))"
+                },
+                "Upsert_deny_rule": {
+                  "type": "Http",
+                  "runAfter": { "Compute_prefixes": [ "Succeeded" ] },
+                  "inputs": {
+                    "method": "PUT",
+                    "uri": "https://management.azure.com@{parameters('nsgResourceId')}/securityRules/@{parameters('denyRuleName')}?api-version=@{parameters('nsgApiVersion')}",
+                    "authentication": { "type": "ManagedServiceIdentity", "audience": "https://management.azure.com/" },
+                    "body": {
+                      "properties": {
+                        "description": "Auto-added by SOC-Ban-AttackerIP playbook",
+                        "protocol": "*",
+                        "sourcePortRange": "*",
+                        "destinationPortRange": "*",
+                        "sourceAddressPrefixes": "@outputs('Compute_prefixes')",
+                        "destinationAddressPrefix": "*",
+                        "access": "Deny",
+                        "priority": "@parameters('denyRulePriority')",
+                        "direction": "Inbound"
+                      }
+                    }
+                  }
+                },
+                "Comment_on_incident": {
+                  "type": "ApiConnection",
+                  "runAfter": { "Upsert_deny_rule": [ "Succeeded" ] },
+                  "inputs": {
+                    "body": {
+                      "incidentArmId": "@triggerBody()?['object']?['id']",
+                      "message": "<p>🚫 Playbook <b>SOC-Ban-AttackerIP</b> added <b>@{items('For_each_IP')?['Address']}</b> to NSG deny rule <b>@{parameters('denyRuleName')}</b>.</p>"
+                    },
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                      }
+                    },
+                    "method": "post",
+                    "path": "/Incidents/Comment"
+                  }
+                }
+              }
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuresentinel": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', concat('azuresentinel-', parameters('playbookName')))]",
+                "connectionName": "[concat('azuresentinel-', parameters('playbookName'))]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]",
+                "connectionProperties": { "authentication": { "type": "ManagedServiceIdentity" } }
+              }
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', concat('azuresentinel-', parameters('playbookName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[concat('azuresentinel-', parameters('playbookName'))]",
+      "location": "[resourceGroup().location]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[concat('azuresentinel-', parameters('playbookName'))]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "playbookName": { "type": "string", "value": "[parameters('playbookName')]" },
+    "playbookPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Logic/workflows', parameters('playbookName')), '2019-05-01', 'full').identity.principalId]"
+    }
+  }
+}

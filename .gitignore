@@ -1,0 +1,37 @@
+# ---- Terraform ----
+# State can contain secrets (VM admin password, keys) — NEVER commit it.
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+
+# Saved plans can also contain sensitive values.
+*.tfplan
+tf.plan
+
+# Provider plugins / lock working dirs.
+.terraform/
+.terraform.tfstate.lock.info
+
+# Variable files that may hold secrets.
+# NOTE: this repo's terraform.tfvars holds only non-secret settings (no password),
+# so it IS committed. Ignore any *.auto.tfvars or a local override you might add.
+*.auto.tfvars
+*.auto.tfvars.json
+secrets.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ---- Local / editor ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---- Scratch ----
+*.tmp
+scratchpad/
