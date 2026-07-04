@@ -8,14 +8,8 @@ surface. The infrastructure is deployed with **Terraform**; the SOC content
 (watchlist, analytics rules, workbooks, and a response playbook) is layered on
 top of it.
 
-> **Ethics & scope:** this is a deliberately vulnerable *lab* honeynet running in
-> an isolated subscription. The VMs hold no real data or credentials, and the
-> environment is torn down after measurement. Do not deploy this against
-> production networks.
-
 ## Architecture
 
-- **Region / subscription:** France Central, isolated lab subscription
 - **Compute:** 2× Windows Server 2022 + 1× Ubuntu 22.04 (honeynet targets)
 - **Network:** VNet + subnet + NSG (deny-by-default, opened to the Internet only
   to collect the "insecure" window)
@@ -27,7 +21,7 @@ top of it.
 Telemetry data flow:
 
 ```
-Attacker (Internet)  ──►  Honeynet VMs  ──AMA + DCR──►  Log Analytics
+Attacker (Internet)  ──►  Honeynet VMs  ── AMA + DCR──►  Log Analytics
                                                             │
                           ┌─────────────────────────────────┤
                           ▼                                  ▼
@@ -110,21 +104,21 @@ Netherlands, London UK).
 
 ---
 
-## Results — before vs. after hardening
+## Results
 
 The honeynet was measured over a ~24h **insecure** window, then hardened
-(NSG lockdown / JIT VM access / Defender recommendations) and measured again.
+(NSG lockdown / JIT VM access / Defender recommendations).
 The insecure window alone generated **24 brute-force incidents** and thousands of
 failed-logon events resolved to attackers on multiple continents.
 
-| Metric              | Before hardening (insecure) | After hardening |
-| ------------------- | --------------------------- | --------------- |
-| Syslog (Linux)      | thousands of failed SSH     | _fill in_       |
-| SecurityEvent (Win) | RDP 4625 failures           | _fill in_       |
-| SecurityIncident    | 24                          | _fill in_       |
-| Unique attacker IPs | 21+ (single window)         | _fill in_       |
+| Metric              | Before hardening (insecure) | 
+| ------------------- | --------------------------- |
+| Syslog (Linux)      | thousands of failed SSH     | 
+| SecurityEvent (Win) | RDP 4625 failures           |
+| SecurityIncident    | 24                          | 
+| Unique attacker IPs | 21+ (single window)         | 
 
-> Replace the "after" column and finalise the "before" numbers with your own
+
 > 24h count-query results (see [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md) Step 7).
 
 ---
