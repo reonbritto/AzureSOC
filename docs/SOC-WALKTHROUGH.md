@@ -5,9 +5,9 @@ triages, investigates, and remediates the live attack traffic the lab attracts,
 and how that produces the "before vs. after hardening" metrics.
 
 It assumes the infrastructure is deployed (`deploy/` Terraform applied), the
-Sentinel content is imported (`deploy/import-sentinel-content.sh`), Microsoft
-Defender for Cloud (Servers Plan 2) is enabled, and the NSG has been opened to
-the Internet to begin the "insecure" measurement window.
+Sentinel content is imported (per [NEXT-STEPS.md](NEXT-STEPS.md) Step 4),
+Microsoft Defender for Cloud (Servers Plan 2) is enabled, and the NSG has been
+opened to the Internet to begin the "insecure" measurement window.
 
 ---
 
@@ -163,5 +163,5 @@ the Internet-facing attack surface.
 - Screenshot the **Secure Score** before and after working the recommendations.
 - Paste your real before/after table into the project `README.md`.
 
-> Reminder: tear the environment down when finished — `deploy/teardown.sh` — to
-> stop billing and close the exposure.
+> Reminder: tear the environment down when finished — `terraform destroy` in
+> `deploy/` — to stop billing and close the exposure.

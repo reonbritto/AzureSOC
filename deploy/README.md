@@ -44,11 +44,13 @@ Then follow [docs/NEXT-STEPS.md](../docs/NEXT-STEPS.md) to build the SOC on top.
 
 ```bash
 cd deploy
-./teardown.sh            # prompts; or ./teardown.sh --yes
+export TF_VAR_admin_password='<any value — required by the parser>'
+terraform destroy
 ```
 
 `terraform destroy` removes the VMs and network. Any monitoring you set up
-manually per the guide is not managed here — remove it separately.
+manually per the guide (Log Analytics workspace, Sentinel content) is not managed
+here — remove it separately, or delete the whole resource group in the Portal.
 
 ## Cost & safety notes
 

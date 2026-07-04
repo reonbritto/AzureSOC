@@ -133,16 +133,12 @@ failed-logon events resolved to attackers on multiple continents.
 
 | Path | What |
 | ---- | ---- |
-| [`deploy/`](deploy/) | Terraform for the VMs + network, plus helper scripts |
+| [`deploy/`](deploy/) | Terraform for the VMs + network |
 | [`deploy/*.tf`](deploy/) | VNet, subnet, deny-by-default NSG, 2 Windows + 1 Linux VM |
-| [`deploy/import-sentinel-content.sh`](deploy/import-sentinel-content.sh) | Imports the GeoIP watchlist, 13 analytics rules, and attack-map workbook |
-| [`deploy/attack-maps-workbook.json`](deploy/attack-maps-workbook.json) | The four attack maps merged into one Sentinel workbook |
-| [`deploy/playbook-ban-ip.json`](deploy/playbook-ban-ip.json) | SOAR playbook (Logic App) to ban an attacker IP via the NSG |
-| [`deploy/teardown.sh`](deploy/teardown.sh) | Destroys the environment |
 | [`docs/NEXT-STEPS.md`](docs/NEXT-STEPS.md) | Step-by-step SOC build guide (Portal + CLI for every step) |
 | [`docs/SOC-WALKTHROUGH.md`](docs/SOC-WALKTHROUGH.md) | Analyst triage runbook (detect → investigate → respond → measure) |
 | [`docs/PLAYBOOK-BAN-IP.md`](docs/PLAYBOOK-BAN-IP.md) | Setup + manual-run guide for the ban-IP playbook |
-| [`azure-soc-honeynet-main/`](azure-soc-honeynet-main/) | Source SOC content (KQL rules, GeoIP CSV, map queries) |
+| [`azure-soc-honeynet-main/`](azure-soc-honeynet-main/) | SOC content: KQL analytics rules, GeoIP CSV, map queries, merged attack-map workbook, and the ban-IP playbook |
 
 ## Deploy it yourself
 
@@ -154,8 +150,8 @@ terraform apply            # 15 resources (VMs + network)
 ```
 
 Then follow [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md) to add the monitoring stack
-and Sentinel content, open the honeynet, and collect metrics. Tear down with
-`deploy/teardown.sh` when finished to stop billing and close the exposure.
+and Sentinel content, open the honeynet, and collect metrics. When finished, run
+`terraform destroy` in `deploy/` to stop billing and close the exposure.
 
 ## Credits
 

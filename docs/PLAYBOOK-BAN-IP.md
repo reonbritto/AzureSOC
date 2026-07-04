@@ -5,7 +5,7 @@ brute-force incident**. It reads the attacker IP from the incident's entities an
 adds it to a single managed **deny rule** on `nsg-soc-honeynet`, blocking that IP
 across all three VMs. It then posts a comment back on the incident.
 
-Files: [`../deploy/playbook-ban-ip.json`](../deploy/playbook-ban-ip.json) (the Logic App ARM template).
+Files: [`../azure-soc-honeynet-main/playbook-ban-ip.json`](../azure-soc-honeynet-main/playbook-ban-ip.json) (the Logic App ARM template).
 
 ## How it works
 
@@ -50,15 +50,15 @@ Save. New incidents from these rules will now include the IP as an entity.
 
 **Portal (custom template):** search **Deploy a custom template** → **Build your
 own template in the editor** → **Load file** →
-`deploy/playbook-ban-ip.json` → set parameters (defaults already target
-`nsg-soc-honeynet`) → **Review + Create**.
+`azure-soc-honeynet-main/playbook-ban-ip.json` → set parameters (defaults already
+target `nsg-soc-honeynet`) → **Review + Create**.
 
 **CLI:**
 ```bash
 az deployment group create \
   --resource-group rg-soc-honeynet \
   --name deploy-ban-ip-playbook \
-  --template-file deploy/playbook-ban-ip.json
+  --template-file azure-soc-honeynet-main/playbook-ban-ip.json
 ```
 
 The template creates the Logic App (with a system-assigned managed identity) plus
@@ -114,8 +114,7 @@ az network nsg rule show -g rg-soc-honeynet --nsg-name nsg-soc-honeynet \
   the playbook will find nothing to ban. Use an incident created *after* mapping.
 - **Unban**: remove an IP from the rule's `sourceAddressPrefixes`, or delete the
   rule entirely (`az network nsg rule delete ... -n DENY-BRUTEFORCE-IPS`).
-- **Teardown**: the playbook + connection live in `rg-soc-honeynet`, so
-  `deploy/teardown.sh` (RG deletion) removes them too — but note `teardown.sh`
-  runs `terraform destroy`, which only manages the VMs/network. Delete the
-  playbook and API connection manually, or via `az resource delete`, if you tore
-  down with Terraform only.
+- **Teardown**: the playbook + connection live in `rg-soc-honeynet`, but
+  `terraform destroy` only manages the VMs/network — it will NOT remove them.
+  Delete the playbook and API connection manually (or `az resource delete`), or
+  delete the whole resource group in the Portal to remove everything at once.

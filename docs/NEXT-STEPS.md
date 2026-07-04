@@ -236,30 +236,24 @@ Give it 10–30 min, then confirm data lands.
 Three pieces: the **`geoip` watchlist** (54,803-row GeoIP CSV the maps join on),
 the **13 scheduled analytics rules**, and the **attack-map workbook**.
 
-### Option B — Script (recommended; loads all three)
-
-The repo ships a tested helper. It needs the RG and workspace names:
-```bash
-cd deploy
-RG="rg-soc-honeynet" WS="law-soc-honeynet" ./import-sentinel-content.sh
-```
-
-### Option A — Portal (manual)
+Do all three in the Portal:
 
 1. **Watchlist**: Sentinel → **Configuration → Watchlists → + Add new**.
    - Name/Alias: **`geoip`** (the alias must be exactly `geoip` — the map queries
      call `_GetWatchlist("geoip")`).
    - Upload `azure-soc-honeynet-main/geoip-summarized.csv`.
    - **SearchKey**: `network`. Create. (The large CSV takes a few minutes.)
-2. **Analytics rules**: the 13 rules ship as an ARM template. Easiest in the
-   Portal: search **Deploy a custom template** → **Build your own template in the
-   editor** → **Load file** →
+2. **Analytics rules**: the 13 rules ship as an ARM template. Search **Deploy a
+   custom template** → **Build your own template in the editor** → **Load file** →
    `azure-soc-honeynet-main/Sentinel-Analytics-Rules(KQL Alert Queries).json` →
    set the **workspace** parameter to `law-soc-honeynet` → **Review + Create**.
-3. **Workbook**: Sentinel → **Threat management → Workbooks → + Add workbook** →
-   **Edit** → **</> Advanced Editor** → paste the contents of each
-   `*-auth-fail.json` / `nsg-malicious-allowed-in.json` as workbook query items
-   (or just run the script above, which assembles them into one workbook for you).
+3. **Workbook**: the four attack maps are already merged into one workbook at
+   `azure-soc-honeynet-main/attack-maps-workbook.json`. Sentinel → **Threat
+   management → Workbooks → + Add workbook** → **Edit** → **</> Advanced Editor**
+   → replace the contents with that file's `serializedData` (or paste the whole
+   workbook body) → **Apply** → **Save**.
+
+   > CLI alternative for the rules: `az deployment group create -g rg-soc-honeynet -f "azure-soc-honeynet-main/Sentinel-Analytics-Rules(KQL Alert Queries).json" -p workspace=law-soc-honeynet`
 
 ### Verify (either option)
 
@@ -410,10 +404,11 @@ maps, respond) is in [SOC-WALKTHROUGH.md](SOC-WALKTHROUGH.md).
 
 ## Step 10 — Tear down (stop billing, close exposure)
 
-**Option B — Azure CLI / Terraform** (recommended — removes exactly what Terraform made):
+**Option B — Terraform** (removes exactly what Terraform made — VMs + network):
 ```bash
 cd deploy
-./teardown.sh              # destroys the VMs + network
+export TF_VAR_admin_password='<any value — required by the parser>'
+terraform destroy
 
 # If you enabled Defender (Step 8), revert it separately:
 az security pricing create -n VirtualMachines --tier Free
@@ -425,4 +420,4 @@ workspace and its Sentinel content, since they live in the same RG.
 
 > Note: if you delete via the Portal, your Terraform state will still think the
 > resources exist. Run `terraform state rm` / `terraform apply` to reconcile, or
-> just prefer `teardown.sh`.
+> just prefer `terraform destroy`.
